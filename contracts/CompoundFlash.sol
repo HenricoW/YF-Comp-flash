@@ -5,7 +5,8 @@ pragma experimental ABIEncoderV2;
 
 import '@studydefi/money-legos/dydx/contracts/DydxFlashloanBase.sol';
 import '@studydefi/money-legos/dydx/contracts/ICallee.sol';
-import '@openzeppelin/contracts/ERC20/IERC20.sol';
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import './CompAdaptor.sol';
 
 contract CompoundFlash is DydxFlashloanBase, ICallee, CompAdaptor {
     enum Direction { Borrow, Repay }
@@ -25,6 +26,11 @@ contract CompoundFlash is DydxFlashloanBase, ICallee, CompAdaptor {
         owner = msg.sender;
     }
 
+    function startFlashLoan(address _solo, address _token, address _cToken, uint256 _amountProvided, uint256 _loanAmount) external {
+        require(msg.sender == owner, "Only Owner allowed");
+        _initiateFlashLoan(_solo, _token, _cToken, _amountProvided, (_loanAmount - 2), Direction.Borrow);
+    }
+
     function _initiateFlashLoan(address _solo, address _token, address _cToken, uint256 _amountProvided, uint256 _loanAmount, Direction _direction) internal {
         ISoloMargin solo = ISoloMargin(_solo);
 
@@ -39,7 +45,7 @@ contract CompoundFlash is DydxFlashloanBase, ICallee, CompAdaptor {
         // 1. Withdraw $, 2. Call callFunction(...), 3. Deposit back $
         Actions.ActionArgs[] memory operations = new Actions.ActionArgs[](3);
         operations[0] = _getWithdrawAction(marketId, _loanAmount);
-        CallData cdata = CallData( _solo, _token, _cToken, _amountProvided, _loanAmount, repayAmount, _direction );
+        CallData memory cdata = CallData( _solo, _token, _cToken, _amountProvided, _loanAmount, repayAmount, _direction );
         operations[1] = _getCallAction( abi.encode(cdata) );    // Encode MyCustomData for callFunction
         operations[2] = _getDepositAction(marketId, repayAmount);
 
@@ -56,12 +62,14 @@ contract CompoundFlash is DydxFlashloanBase, ICallee, CompAdaptor {
 
         require(balOfLoanedToken >= cd.repayAmount, "Not enough funds to repay dydx loan!");
 
-        // TODO: Encode your logic here
-
         // deposit funds to relevant cToken contract - (amountProvided + loanAmount)
         // trigger enterMarkets on comptroller - (loanAmount + 2 wei = repayAmount)
         // transfer ERC20 amount back to loan provider
+        if(cd.direction == Direction.Borrow){
+            deposit(cd.cToken, (cd.loanAmount + cd.amountProvided));
+            borrow(cd.cToken, cd.loanAmount);
+        }
         
-        revert("Hello, you haven't encoded your logic");
+        // revert("Hello, you haven't encoded your logic");
     }
 }
