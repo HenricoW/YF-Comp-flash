@@ -31,6 +31,29 @@ contract CompoundFlash is DydxFlashloanBase, ICallee, CompAdaptor {
         _initiateFlashLoan(_solo, _token, _cToken, _amountProvided, (_loanAmount - 2), Direction.Borrow);
     }
 
+    function closeOutFlashLoan(address _solo, address _token, address _cToken) external {
+        require(msg.sender == owner, "Only Owner allowed");
+
+        // COMP
+        claimComp();
+        address compAddr = getCompAddress();
+        IERC20 compToken = IERC20(compAddr);
+        uint compBalance = compToken.balanceOf(address(this));
+        compToken.transfer(msg.sender, compBalance);
+
+        // ensure sufficient underlying balance
+        IERC20 token = IERC20(_token);
+        token.transferFrom(msg.sender, address(this), 2);
+
+        // conduct flashloan for repayment
+        uint borrowBal = getBorrowBalance(_cToken);
+        _initiateFlashLoan(_solo, _token, _cToken, 0, borrowBal, Direction.Repay);
+
+        // Underlying
+        uint tknAmount = token.balanceOf(address(this));
+        token.transfer(msg.sender, tknAmount);
+    }
+
     function _initiateFlashLoan(address _solo, address _token, address _cToken, uint256 _amountProvided, uint256 _loanAmount, Direction _direction) internal {
         ISoloMargin solo = ISoloMargin(_solo);
 
@@ -68,6 +91,10 @@ contract CompoundFlash is DydxFlashloanBase, ICallee, CompAdaptor {
         if(cd.direction == Direction.Borrow){
             deposit(cd.cToken, (cd.loanAmount + cd.amountProvided));
             borrow(cd.cToken, cd.loanAmount);
+        } else if(cd.direction == Direction.Repay) {
+            repay(cd.cToken, cd.loanAmount);
+            uint cTknBal = getCTokenBalance(cd.cToken);
+            redeem(cd.cToken, cTknBal);
         }
         
         // revert("Hello, you haven't encoded your logic");
