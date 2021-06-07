@@ -10,6 +10,7 @@ interface CTokenInterface {
     function repayBorrow(uint repayAmount) external returns (uint);
     function borrowBalanceCurrent(address account) external returns (uint);
     function balanceOf(address owner) external view returns (uint);
+    function getAccountSnapshot(address account) external view returns (uint, uint, uint, uint);
     // function balanceOfUnderlying(address owner) external returns (uint);
     function underlying() external view returns(address);
 }

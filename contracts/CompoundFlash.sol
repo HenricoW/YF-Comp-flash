@@ -22,7 +22,7 @@ contract CompoundFlash is DydxFlashloanBase, ICallee, CompAdaptor {
 
     address public owner;
 
-    constructor () public {
+    constructor (address _comptroller) CompAdaptor(_comptroller) public {
         owner = msg.sender;
     }
 

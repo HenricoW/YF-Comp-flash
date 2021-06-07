@@ -10,18 +10,21 @@ contract CompAdaptor {
     // pointers
     ComptrollerInterface public comptroller;
 
+    event Log(string mssg, uint val);
+
     constructor (address _comptroller) public {
         comptroller = ComptrollerInterface(_comptroller);
     }
 
     // deposit tokens
-    function deposit(address cTokenAddr, uint amount) internal {
+    function deposit(address cTokenAddr, uint amount) public {
         CTokenInterface cToken = CTokenInterface(cTokenAddr);
         address underlying = cToken.underlying();
         IERC20 uToken = IERC20(underlying);
         uToken.approve(cTokenAddr, amount);
 
         uint result = cToken.mint(amount);
+        emit Log("cToken mint", result);
         require(result == 0, "cToken#mint() failed. See Compound ErrorReporter.sol for details.");
     }
 
@@ -34,7 +37,7 @@ contract CompAdaptor {
     }
 
     //  borrow tokens
-    function borrow(address cTokenAddr, uint uAmount) internal {
+    function borrow(address cTokenAddr, uint uAmount) public {
         CTokenInterface cToken = CTokenInterface(cTokenAddr);
 
         address[] memory cTokens = new address[](1);
@@ -44,7 +47,21 @@ contract CompAdaptor {
         require(result[0] == 0, "Comptroller#enterMarkets() failed. See Compound ErrorReporter.sol for details.");
 
         uint result2 = cToken.borrow(uAmount);
-        require(result2 == 0, "cToken#borrow() failed. See Compound ErrorReporter.sol for details.");
+        emit Log("cToken#borrow() error code: ", result2);
+
+        // require(result2 > 1, "UNAUTHORIZED");
+        // require(result2 > 2, "BAD_INPUT");
+        // require(result2 > 3, "COMPTROLLER_REJECTION");
+        // require(result2 > 4, "COMPTROLLER_CALCULATION_ERROR");
+        // require(result2 > 5, "INTEREST_RATE_MODEL_ERROR");
+        // require(result2 > 6, "INVALID_ACCOUNT_PAIR");
+        // require(result2 > 7, "INVALID_CLOSE_AMOUNT_REQUESTED");
+        // require(result2 > 8, "INVALID_COLLATERAL_FACTOR");
+        // require(result2 > 9, "MATH_ERROR");
+        // require(result2 > 10, "MARKET_NOT_FRESH");
+        require(result2 == 0, "Token#borrow() failed.");
+        
+        // require(result2 == 0, "cToken#borrow() failed. See Compound ErrorReporter.sol for details.");
     }
 
     // repay the borrowed tokens
